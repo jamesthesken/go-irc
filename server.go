@@ -1,10 +1,10 @@
-package gopherchatv2
+package main
 
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"net"
-	"strings"
 )
 
 type Server struct {
@@ -16,7 +16,6 @@ func (s *Server) Start(network, address string) (err error) {
 	if err != nil {
 		return err
 	}
-	defer s.listener.Close()
 
 	for {
 		// Wait for a connection.
@@ -31,15 +30,28 @@ func (s *Server) Start(network, address string) (err error) {
 	}
 }
 
-func handleConnection(c net.Conn) {
+func handleConnection(conn net.Conn) {
 	// Incoming message from client
-	s, err := bufio.NewReader(c).ReadString('\n')
-	if err != nil {
-		errors.New("oh no!")
-	}
-	cmd := strings.Trim(s, "\n")
+	for {
+		s, err := bufio.NewReader(conn).ReadString('\n')
+		if err != nil {
+			errors.New("oh no!")
+		}
+		// cmd := strings.Trim(s, "\n")
+		fmt.Print(s)
+		// // broadcast message to clients
+		writer := bufio.NewWriter(conn)
 
-	// echo message back
-	c.Write([]byte(cmd))
-	c.Close()
+		writer.WriteString(s)
+
+		writer.Flush()
+	}
+
+}
+
+func main() {
+	s := &Server{}
+
+	s.Start("tcp", "localhost:3001")
+
 }
