@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 // TODO: Implement a Client interface which contains methods read, write, connect, configure, etc.
@@ -17,6 +18,7 @@ type CLI struct {
 	in io.Reader
 }
 
+// TODO: implement multi-line messages
 func (cli *CLI) Write(client io.Writer) {
 	writer := bufio.NewWriter(client)
 	reader := bufio.NewReader(cli.in)
@@ -37,6 +39,7 @@ func (cli *CLI) Write(client io.Writer) {
 	}
 }
 
+// Server operations
 func Connect(server string) (net.Conn, error) {
 	client, err := net.Dial("tcp", server)
 	if err != nil {
@@ -56,12 +59,16 @@ func Connect(server string) (net.Conn, error) {
 
 var wg sync.WaitGroup
 
+// This may be better implemented as two separate functions
+// One to read incoming messages
+// Another to format messages
 func (cli *CLI) Read(client io.ReadWriter) {
 	// Tests pass if you return a string, this works with the server though
 	s := bufio.NewScanner(client)
 	for s.Scan() {
 		line := s.Text()
-		log.Printf("Server: %s", line)
+
+		fmt.Printf("%s\n", formatMessage(line))
 
 		if strings.Contains(line, "PING") {
 			msg := strings.TrimPrefix(line, "PING")
@@ -74,6 +81,20 @@ func (cli *CLI) Read(client io.ReadWriter) {
 	if s.Err() != nil {
 		log.Fatalf("Error occured: %s", s.Err())
 	}
+}
+
+func formatMessage(msg string) string {
+
+	timeStamp := time.Now()
+	contents := strings.Split(msg, ":")
+
+	formatted := fmt.Sprintf("%s < %s > %s",
+		timeStamp.Format("3:04PM"),
+		strings.Split(contents[1], "!")[0],
+		contents[len(contents)-1:])
+
+	return formatted
+
 }
 
 func main() {
