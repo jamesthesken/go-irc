@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"io"
 	"log"
 	"net"
 	"strings"
@@ -73,7 +74,7 @@ func assertNoError(t testing.TB, got error) {
 }
 
 // Test client read by returning a string
-func (cli *CLI) testRead(client net.Conn) string {
+func (cli *CLI) testRead(client io.Reader) string {
 	s := bufio.NewScanner(client)
 	for s.Scan() {
 		line := s.Text()

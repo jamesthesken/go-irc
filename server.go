@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 )
 
@@ -30,7 +31,7 @@ func (s *Server) Start(network, address string) (err error) {
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn io.ReadWriter) {
 	// Incoming message from client
 	for {
 		s, err := bufio.NewReader(conn).ReadString('\n')
