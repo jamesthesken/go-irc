@@ -18,10 +18,17 @@ type CLI struct {
 	in io.Reader
 }
 
+type Client struct {
+	host    string
+	channel string
+	nick    string
+}
+
 // TODO: implement multi-line messages
 func (cli *CLI) Write(client io.Writer) {
 	writer := bufio.NewWriter(client)
 	reader := bufio.NewReader(cli.in)
+
 	for {
 		str, err := reader.ReadString('\n')
 		if err != nil {
@@ -41,7 +48,7 @@ func (cli *CLI) Write(client io.Writer) {
 
 // Server operations
 func Connect(server string) (net.Conn, error) {
-	client, err := net.Dial("tcp", server)
+	c, err := net.Dial("tcp", server)
 	if err != nil {
 		log.Fatalf("Error: %s", err)
 		return nil, err
@@ -50,11 +57,12 @@ func Connect(server string) (net.Conn, error) {
 	// RFC 1459 - 4.1.2/3 - NICK and USER messages
 	nick := "NICK samej1293871\n"
 	user := "USER samej1293871 * * :samej1293871\n"
-	client.Write([]byte(nick))
 
-	client.Write([]byte(user))
+	c.Write([]byte(nick))
 
-	return client, nil
+	c.Write([]byte(user))
+
+	return c, nil
 }
 
 var wg sync.WaitGroup
@@ -68,7 +76,7 @@ func (cli *CLI) Read(client io.ReadWriter) {
 	for s.Scan() {
 		line := s.Text()
 
-		fmt.Printf("%s\n", formatMessage(line))
+		fmt.Printf("%s\n", parseMessage(line))
 
 		if strings.Contains(line, "PING") {
 			msg := strings.TrimPrefix(line, "PING")
@@ -83,17 +91,37 @@ func (cli *CLI) Read(client io.ReadWriter) {
 	}
 }
 
-func formatMessage(msg string) string {
-
+// parseMessage returns formatted incoming messages
+func parseMessage(msg string) string {
 	timeStamp := time.Now()
+	// not ideal -> edge case: someone sends a link like https://foo.bar.com
 	contents := strings.Split(msg, ":")
 
 	formatted := fmt.Sprintf("%s < %s > %s",
 		timeStamp.Format("3:04PM"),
 		strings.Split(contents[1], "!")[0],
-		contents[len(contents)-1:])
+		contents[len(contents)-1:][0])
 
 	return formatted
+}
+
+// formatMessage returns formatted outgoing messages
+func (client *Client) formatMessage(msg string) string {
+
+	// Check if the message includes a server command
+	if strings.HasPrefix(msg, "/") {
+		// Maybe a bad assumption that we can properly split the string
+		// e.g. - '/nick james' will become [/nick, james]
+		cmd := strings.Split(msg, " ")[0]
+
+		// If the string value of the command exists in the commands map,
+		// execute the state-changing function -> see commands.go for details
+		if val, exists := commands[cmd]; exists {
+			val(client, msg)
+		}
+	}
+
+	return "formatted"
 
 }
 
