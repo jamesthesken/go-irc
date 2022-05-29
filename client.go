@@ -24,6 +24,15 @@ type Client struct {
 	nick    string
 }
 
+var commands = map[string]func(client *Client, userInput string){
+	"/nick": func(client *Client, userInput string) { nick(client, userInput) },
+}
+
+func nick(client *Client, userInput string) {
+	msg := strings.Split(userInput, " ")
+	client.nick = msg[1]
+}
+
 // TODO: implement multi-line messages
 func (cli *CLI) Write(client io.Writer) {
 	writer := bufio.NewWriter(client)
@@ -91,16 +100,26 @@ func (cli *CLI) Read(client io.ReadWriter) {
 	}
 }
 
+// Possibly create a map that includes characters to remove in the expected msg format
+
 // parseMessage returns formatted incoming messages
 func parseMessage(msg string) string {
 	timeStamp := time.Now()
-	// not ideal -> edge case: someone sends a link like https://foo.bar.com
-	contents := strings.Split(msg, ":")
+	// kinda wonky, this assumes incoming messages are always in the leading format:
+	// ":Guest56!~Guest56@cpe-10.21.123.13.1.foo.bar.com PRIVMSG #python"
+	// with that assumption, after the split we only need
+	// everything after index 3:
+	fullMsg := strings.Split(msg, " ")
+
+	content := strings.Join(fullMsg[3:][:], " ")
+
+	// nickname of who we received the message from
+	msgNick := strings.Split(fullMsg[0], "!")[0]
 
 	formatted := fmt.Sprintf("%s < %s > %s",
 		timeStamp.Format("3:04PM"),
-		strings.Split(contents[1], "!")[0],
-		contents[len(contents)-1:][0])
+		strings.TrimPrefix(msgNick, ":"),
+		strings.TrimPrefix(content, ":"))
 
 	return formatted
 }
@@ -118,6 +137,8 @@ func (client *Client) formatMessage(msg string) string {
 		// execute the state-changing function -> see commands.go for details
 		if val, exists := commands[cmd]; exists {
 			val(client, msg)
+		} else {
+			return cmd
 		}
 	}
 
