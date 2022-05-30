@@ -76,15 +76,30 @@ func TestClient(t *testing.T) {
 		}
 	})
 
-	t.Run("test outgoing message formatting", func(t *testing.T) {
+	t.Run("test command execution", func(t *testing.T) {
 
 		client := Client{}
 
 		client.formatMessage("/nick james")
 
 		got := client.nick
-
 		want := "james"
+
+		if want != got {
+			t.Errorf("got %q, wanted %q", got, want)
+		}
+	})
+
+	t.Run("test outgoing message formatting", func(t *testing.T) {
+
+		client := Client{
+			nick:    "james",
+			channel: "#go-nuts",
+		}
+
+		got := client.formatMessage("Hello!")
+
+		want := "PRIVMSG #go-nuts :Hello!"
 
 		if want != got {
 			t.Errorf("got %q, wanted %q", got, want)
