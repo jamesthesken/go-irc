@@ -2,35 +2,9 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"testing"
 	"time"
 )
-
-// Only testing on localhost (for now)
-const (
-	network = "tcp"
-	address = "localhost:3001"
-)
-
-func init() {
-	server := Server{}
-
-	// Start up the server so it doesn't block the tests
-	go func() {
-		server.Start(network, address)
-	}()
-
-}
-
-// Test: server is up and able to receive client connections
-func TestServer(t *testing.T) {
-	t.Run("test if the server can accept connections", func(t *testing.T) {
-		client, err := net.Dial(network, address)
-		assertNoError(t, err)
-		defer client.Close()
-	})
-}
 
 func TestClient(t *testing.T) {
 	t.Run("test ingress message formatting", func(t *testing.T) {
