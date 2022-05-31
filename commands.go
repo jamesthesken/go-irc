@@ -17,9 +17,15 @@ func nick(client *Client, userInput string) {
 	client.nick = msg[1]
 }
 
+// As the user joins more channels, client.channel should be
+// an arry of current channels
 func join(client *Client, userInput string) {
 	msg := strings.Split(userInput, " ")
 	client.channel = msg[1]
+}
+
+func part(client *Client, userInput string) {
+	client.channel = ""
 }
 
 // executeCommand takes a cmd and messaage and executes a command
