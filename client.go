@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
@@ -26,7 +27,11 @@ type Client struct {
 
 // Server operations
 func (client *Client) Connect(server string) (net.Conn, error) {
-	c, err := net.Dial("tcp", server)
+
+	// SSL
+	conf := &tls.Config{}
+
+	c, err := tls.Dial("tcp", server, conf)
 	if err != nil {
 		log.Fatalf("Error: %s", err)
 		return nil, err
@@ -59,7 +64,6 @@ func (cli *CLI) Write(conn io.Writer) {
 
 		msg := client.formatMessage(str)
 		log.Print(msg)
-		log.Print(client)
 
 		// Just makes for easier formatting, as opposed to WriteString()
 		fmt.Fprintf(writer, "%s\r\n", msg)
@@ -159,7 +163,7 @@ func main() {
 
 	client.host = name
 
-	conn, err := client.Connect("irc.libera.chat:6667")
+	conn, err := client.Connect("irc.libera.chat:6697")
 	if err != nil {
 		log.Fatalf("Error: %s", err)
 	}
