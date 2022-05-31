@@ -49,10 +49,3 @@ func handleConnection(conn io.ReadWriter) {
 	}
 
 }
-
-func main() {
-	s := &Server{}
-
-	s.Start("tcp", "localhost:3001")
-
-}
