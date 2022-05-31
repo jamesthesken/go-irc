@@ -1,4 +1,6 @@
-## Go IRC!
+# Go IRC!
+
+![build-badge](https://app.travis-ci.com/jamesthesken/go-irc.svg?branch=master)
 
 This is a simple IRC client written in Go. In its current form, this is an educational project to learn about networking and Golang.
 
@@ -12,4 +14,5 @@ cd go-irc
 go build
 ./gopherchatv2
 ```
+
 
