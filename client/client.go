@@ -82,7 +82,7 @@ func (cli *CLI) Read(client io.ReadWriter) {
 	s := bufio.NewScanner(client)
 	for s.Scan() {
 		line := s.Text()
-		fmt.Printf("%s\n", parseMessage(line))
+		fmt.Printf("%s\n", ParseMessage(line))
 
 	}
 	if s.Err() != nil {
@@ -93,7 +93,7 @@ func (cli *CLI) Read(client io.ReadWriter) {
 // Possibly create a map that includes characters to remove in the expected msg format
 
 // parseMessage returns formatted incoming messages
-func parseMessage(msg string) string {
+func ParseMessage(msg string) string {
 	// kinda wonky, this assumes incoming messages are always in the leading format:
 	// ":Guest56!~Guest56@cpe-10.21.123.13.1.foo.bar.com PRIVMSG #python"
 	// with that assumption, after the split we only need
