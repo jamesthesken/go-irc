@@ -35,12 +35,12 @@ func StartTea() {
 		log.Fatalf("Error: %s", err)
 	}
 
-	go m.Read(conn)
-
-	p := tea.NewProgram(m,
+	p := *tea.NewProgram(m,
 		tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
 		tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
 	)
+
+	go m.Read(conn, &p)
 
 	if err := p.Start(); err != nil {
 		log.Fatal(err)
@@ -105,9 +105,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// i.e., Message interface
 	case RcvMessage:
 		// this does not work:
-		m.messages = append(m.messages, m.senderStyle.Render("Server: ")+string(msg.content))
+		m.messages = append(m.messages, m.senderStyle.Render("Server: "), string(msg.content))
 		m.viewport.SetContent(strings.Join(m.messages, "\n"))
-		fmt.Print(msg.content) // but this does ??
 		m.viewport.GotoBottom()
 	case tea.KeyMsg:
 		switch {
@@ -117,7 +116,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, constants.Keymap.Enter):
 			timeStamp := time.Now()
 			m.messages = append(m.messages, m.senderStyle.Render("< You > "+timeStamp.Format("3:04PM: "))+m.textarea.Value())
-			print(m.textarea.Value())
 			m.viewport.SetContent(strings.Join(m.messages, "\n"))
 			m.textarea.Reset()
 			m.viewport.GotoBottom()
@@ -147,12 +145,12 @@ type RcvMessage struct {
 	content string
 }
 
-func (model *Model) Read(conn io.ReadWriter) {
+func (m Model) Read(conn io.ReadWriter, p *tea.Program) {
 	s := bufio.NewScanner(conn)
 	for s.Scan() {
 		line := s.Text()
 		msgRcv := fmt.Sprintf(client.ParseMessage(line), "\n")
-		model.Update(RcvMessage{content: msgRcv})
+		p.Send(RcvMessage{content: msgRcv})
 	}
 	if s.Err() != nil {
 		log.Fatalf("Error occured: %s", s.Err())
