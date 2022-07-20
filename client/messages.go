@@ -7,8 +7,9 @@ package client
 */
 
 type Message struct {
-	msg     string
-	nick    string
-	channel string
-	time    string
+	Content string
+	Nick    string
+	Channel string
+	Time    string
+	Command int
 }
