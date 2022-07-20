@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -62,7 +63,7 @@ func (cli *CLI) Write(conn io.Writer) {
 			log.Fatalf("Error reading input: %s", err)
 		}
 
-		msg := client.formatMessage(str)
+		msg := client.FormatMessage(str)
 
 		// Just makes for easier formatting, as opposed to WriteString()
 		fmt.Fprintf(writer, "%s\r\n", msg)
@@ -93,36 +94,44 @@ func (cli *CLI) Read(client io.ReadWriter) {
 // Possibly create a map that includes characters to remove in the expected msg format
 
 // parseMessage returns formatted incoming messages
-func ParseMessage(msg string) string {
+func ParseMessage(msg string) Message {
 	// kinda wonky, this assumes incoming messages are always in the leading format:
 	// ":Guest56!~Guest56@cpe-10.21.123.13.1.foo.bar.com PRIVMSG #python"
 	// with that assumption, after the split we only need
 	// everything after index 3:
 	fullMsg := strings.Split(msg, " ")
 
+	m := Message{}
+
 	// check for ping messages
 	if fullMsg[0] == "PING" {
 		pong := "PONG" + fullMsg[1]
-		return pong
+		return Message{Content: pong}
 	} else {
+
 		content := strings.Join(fullMsg[3:][:], " ")
 
 		// nickname of who we received the message from
 		msgNick := strings.Split(fullMsg[0], "!")[0]
 
 		timeStamp := time.Now()
+		cmd := fullMsg[1]
+		if s, err := strconv.Atoi(cmd); err == nil {
+			m.Command = s
+		}
 
-		formatted := fmt.Sprintf("%s < %s > %s",
-			timeStamp.Format("3:04PM"),
-			strings.TrimPrefix(msgNick, ":"),
-			strings.TrimPrefix(content, ":"))
-		return formatted
+		m.Channel = fullMsg[2]
+		m.Nick = strings.TrimPrefix(msgNick, ":")
+		m.Content = strings.TrimPrefix(content, ":")
+		m.Time = timeStamp.Format("3:04PM")
+
+		return m
 	}
 
 }
 
 // formatMessage returns formatted outgoing messages
-func (client *Client) formatMessage(msg string) string {
+func (client *Client) FormatMessage(msg string) string {
 
 	// Check if the message includes a server command
 	if strings.HasPrefix(msg, "/") {

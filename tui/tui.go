@@ -10,6 +10,7 @@ import (
 	"gopherchatv2/tui/constants"
 	"io"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +26,15 @@ var wg sync.WaitGroup
 
 func StartTea() {
 
+	// start logging
+	f, err := os.OpenFile("testlogfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	defer f.Close()
+
+	log.SetOutput(f)
+
 	m := initialModel()
 
 	wg.Add(1)
@@ -34,6 +44,7 @@ func StartTea() {
 	if err != nil {
 		log.Fatalf("Error: %s", err)
 	}
+	m.conn = conn
 
 	p := *tea.NewProgram(m,
 		tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
@@ -47,14 +58,15 @@ func StartTea() {
 	}
 }
 
-type tickMsg struct{}
 type errMsg error
 
 type Model struct {
 	viewport    viewport.Model
 	messages    []string
+	motd        string
 	textarea    textarea.Model
 	senderStyle lipgloss.Style
+	conn        io.Writer
 	err         error
 }
 
@@ -74,7 +86,7 @@ func initialModel() *Model {
 
 	ta.ShowLineNumbers = false
 
-	vp := viewport.New(30, 10)
+	vp := viewport.New(30, 20)
 	vp.SetContent(`Welcome to IRC!`)
 
 	ta.KeyMap.InsertNewline.SetEnabled(false)
@@ -90,7 +102,6 @@ func initialModel() *Model {
 
 // Init() is the first function called by BubbleTea.
 func (m Model) Init() tea.Cmd {
-
 	return textarea.Blink
 }
 
@@ -103,9 +114,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	// Implement different tea messages sent by the clients.
 	// i.e., Message interface
-	case RcvMessage:
-		// this does not work:
-		m.messages = append(m.messages, m.senderStyle.Render("Server: "), string(msg.content))
+	case client.Message:
+		m.messages = append(m.messages, m.senderStyle.Render(msg.Time), m.senderStyle.Render(" Server: "), msg.Content)
 		m.viewport.SetContent(strings.Join(m.messages, "\n"))
 		m.viewport.GotoBottom()
 	case tea.KeyMsg:
@@ -117,6 +127,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			timeStamp := time.Now()
 			m.messages = append(m.messages, m.senderStyle.Render("< You > "+timeStamp.Format("3:04PM: "))+m.textarea.Value())
 			m.viewport.SetContent(strings.Join(m.messages, "\n"))
+			m.Write(m.textarea.Value())
 			m.textarea.Reset()
 			m.viewport.GotoBottom()
 		}
@@ -141,18 +152,30 @@ func (m Model) View() string {
 	) + "\n\n"
 }
 
-type RcvMessage struct {
-	content string
-}
-
 func (m Model) Read(conn io.ReadWriter, p *tea.Program) {
 	s := bufio.NewScanner(conn)
 	for s.Scan() {
 		line := s.Text()
-		msgRcv := fmt.Sprintf(client.ParseMessage(line), "\n")
-		p.Send(RcvMessage{content: msgRcv})
+		log.Println(line)
+		msgRcv := client.ParseMessage(line)
+		switch msgRcv.Command {
+		case client.RplMotd:
+			m.motd += msgRcv.Content + "\n"
+		case client.RplMotdEnd:
+			msgRcv.Content = m.motd
+			p.Send(msgRcv)
+		default:
+			p.Send(msgRcv)
+		}
 	}
 	if s.Err() != nil {
 		log.Fatalf("Error occured: %s", s.Err())
 	}
+}
+
+func (m *Model) Write(msg string) {
+	writer := bufio.NewWriter(m.conn)
+	// Just makes for easier formatting, as opposed to WriteString()
+	fmt.Fprintf(writer, "%s\r\n", msg)
+	writer.Flush()
 }
