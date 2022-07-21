@@ -21,6 +21,11 @@ const (
 	RplMotdEnd   = 376 // :End of /MOTD command.
 	RplUModeIs   = 221 // <mode>
 
+	// Help
+	RplHelpStart = 704 // Indicates the start of a reply to a HELP command.
+	RplHelp      = 705 // Returns a line of HELP text to the client
+	RplHelpEnd   = 706 // Returns the final HELP line to the client.
+
 	// IsOn/UserHost
 	RplUserHost = 302 // :userhosts
 	RplIsOn     = 303 // :nicknames
