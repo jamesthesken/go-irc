@@ -95,8 +95,13 @@ func initialModel() *Model {
 	// viewport
 	vp := viewport.New(5, 2)
 	vp.SetContent(`Welcome to IRC!`)
+	// TODO - apply a new list of keybindings ...
 	vp.KeyMap.PageDown.SetEnabled(false)
 	vp.KeyMap.PageUp.SetEnabled(false)
+	vp.KeyMap.HalfPageDown.SetEnabled(false)
+	vp.KeyMap.HalfPageUp.SetEnabled(false)
+	vp.KeyMap.Up.SetEnabled(false)
+	vp.KeyMap.Down.SetEnabled(false)
 
 	return &Model{
 		textarea:    ta,
