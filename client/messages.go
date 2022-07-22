@@ -7,9 +7,11 @@ package client
 */
 
 type Message struct {
-	Content string
-	Nick    string
-	Channel string
-	Time    string
-	Command int
+	Content      string
+	Nick         string
+	Channel      string
+	Time         string
+	Notification string
+	NumReply     int
+	Ping         bool
 }
