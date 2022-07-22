@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -61,16 +62,25 @@ func StartTea() {
 }
 
 type errMsg error
+type item string
+type mode int
+
+const (
+	nav mode = iota
+	msgMode
+)
 
 type Model struct {
+	mode        mode
 	viewport    viewport.Model
-	messages    []string
-	serverMsg   string
 	textarea    textarea.Model
+	list        list.Model
 	senderStyle lipgloss.Style
 	notifStyle  lipgloss.Style
 	conn        io.Writer
 	client      *client.Client
+	messages    []string
+	serverMsg   string
 	err         error
 }
 
@@ -103,12 +113,20 @@ func initialModel() *Model {
 	vp.KeyMap.Up.SetEnabled(false)
 	vp.KeyMap.Down.SetEnabled(false)
 
+	// channel list
+	items := []list.Item{}
+
+	list := list.NewModel(items, list.NewDefaultDelegate(), 0, 0)
+	list.DisableQuitKeybindings()
+	list.Title = "Channels"
+
 	return &Model{
 		textarea:    ta,
 		messages:    []string{},
 		viewport:    vp,
 		senderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
 		notifStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("#808080")),
+		list:        list,
 		err:         nil,
 	}
 }
@@ -167,6 +185,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case msg.String() == "ctrl+c":
 			fmt.Println(m.textarea.Value())
 			return m, tea.Quit
+		case key.Matches(msg, constants.Keymap.Tab):
+			m.toggleBox()
 		case key.Matches(msg, constants.Keymap.Enter):
 			timeStamp := time.Now()
 			m.messages = append(m.messages, m.senderStyle.Render(timeStamp.Format("3:04PM"+" < You > "))+m.textarea.Value())
@@ -190,10 +210,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	m.viewport.Style = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("212")).Width(m.viewport.Width)
-	left := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("212")).Height(m.viewport.Height).Width(m.viewport.Width / 7).Padding(1).Render("Menu\nItem 1\nItem 2\nItem 3")
+
+	// channel pane
+	left := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("212")).Height(m.viewport.Height).Width(m.viewport.Width / 7).Padding(1).Render(m.list.View())
 	right := m.viewport.View()
 	bottomRight := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Height(1).Width(m.viewport.Width).BorderForeground(lipgloss.Color("212")).Padding(1).Render(m.textarea.View())
 
+	// chat window and input
 	rightPane := lipgloss.JoinVertical(lipgloss.Center, right, bottomRight)
 
 	formatted := lipgloss.JoinHorizontal(lipgloss.Left, left, rightPane)
@@ -252,4 +275,14 @@ func (m *Model) setContent(text string) {
 	// Perform text wrapping before setting the content in the viewport
 	wrap := lipgloss.NewStyle().Width(m.viewport.Width)
 	m.viewport.SetContent(wrap.Render(text))
+}
+
+// toggleBox toggles between the message entry and channels list
+func (m *Model) toggleBox() {
+	m.mode = (m.mode + 1) % 2
+	if m.mode == 0 {
+		m.textarea.Blur()
+	} else {
+		m.textarea.Focus()
+	}
 }

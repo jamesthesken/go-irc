@@ -11,9 +11,10 @@ import (
 )
 
 type Client struct {
-	Host    string
-	Channel string
-	Nick    string
+	Host     string
+	Nick     string
+	Channel  string
+	Channels []string
 }
 
 // Server operations
