@@ -2,24 +2,27 @@ package client
 
 import (
 	"testing"
-	"time"
 )
 
 func TestClient(t *testing.T) {
-	t.Run("test ingress message formatting", func(t *testing.T) {
-		got := ParseMessage(":Guest56!~Guest56@cpe-10.21.123.13.1.foo.bar.com PRIVMSG #python :Please use a test channel https://foo.bar.com")
+	t.Run("test successful join message", func(t *testing.T) {
 
-		now := time.Now()
-
-		want := Message{
-			Content: "Please use a test channel https://foo.bar.com",
+		client := Client{
 			Nick:    "Guest56",
 			Channel: "#python",
-			Time:    now.Format("3:04PM"),
 		}
 
-		if want != got {
-			t.Errorf("got %s, wanted %s", got.Time, want.Time)
+		client.Channels = []string{}
+
+		// if a client joins a channel successfully, update the client's state
+		msg := ParseMessage(":Guest56!~Guest56@cpe-10.21.123.13.1.foo.bar.com JOIN #go-nuts", &client)
+
+		got := client.Channels[0]
+
+		want := "#go-nuts"
+
+		if got != want {
+			t.Errorf("got %q with message: %T, wanted %q", got, msg, want)
 		}
 	})
 

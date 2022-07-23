@@ -63,7 +63,10 @@ func StartTea() {
 
 type errMsg error
 type item string
+type itemDelegate struct{}
 type mode int
+
+func (i item) FilterValue() string { return "" }
 
 const (
 	nav mode = iota
@@ -82,6 +85,37 @@ type Model struct {
 	messages    []string
 	serverMsg   string
 	err         error
+}
+
+const listHeight = 14
+
+var (
+	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
+	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
+	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
+	quitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 2, 4)
+)
+
+func (d itemDelegate) Height() int                               { return 1 }
+func (d itemDelegate) Spacing() int                              { return 0 }
+func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd { return nil }
+func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	i, ok := listItem.(item)
+	if !ok {
+		return
+	}
+
+	str := fmt.Sprintf("%s", i)
+
+	fn := itemStyle.Render
+	if index == m.Index() {
+		fn = func(s string) string {
+			return selectedItemStyle.Render("> " + s)
+		}
+	}
+
+	fmt.Fprintf(w, fn(str))
 }
 
 func initialModel() *Model {
@@ -114,9 +148,11 @@ func initialModel() *Model {
 	vp.KeyMap.Down.SetEnabled(false)
 
 	// channel list
-	items := []list.Item{}
+	items := []list.Item{item("Test")}
+	const defaultWidth = 20
 
-	list := list.NewModel(items, list.NewDefaultDelegate(), 0, 0)
+	list := list.New(items, itemDelegate{}, defaultWidth, listHeight)
+	list.SetFilteringEnabled(false)
 	list.DisableQuitKeybindings()
 	list.Title = "Channels"
 
@@ -138,6 +174,7 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
+		liCmd tea.Cmd
 		tiCmd tea.Cmd
 		vpCmd tea.Cmd
 	)
@@ -202,10 +239,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	channels := channelsToItems(m.client.Channels)
+	m.list.SetItems(channels)
+
+	m.list, liCmd = m.list.Update(msg)
 	m.textarea, tiCmd = m.textarea.Update(msg)
 	m.viewport, vpCmd = m.viewport.Update(msg)
 
-	return m, tea.Batch(tiCmd, vpCmd)
+	return m, tea.Batch(tiCmd, vpCmd, liCmd)
 }
 
 func (m Model) View() string {
@@ -230,7 +271,7 @@ func (m Model) Read(conn io.ReadWriter, p *tea.Program) {
 	for s.Scan() {
 		line := s.Text()
 		log.Println(line)
-		msgRcv := client.ParseMessage(line)
+		msgRcv := client.ParseMessage(line, m.client)
 
 		if msgRcv.Ping {
 			m.Write(msgRcv.Content)
@@ -285,4 +326,15 @@ func (m *Model) toggleBox() {
 	} else {
 		m.textarea.Focus()
 	}
+}
+
+func channelsToItems(channels []string) []list.Item {
+	items := make([]list.Item, len(channels))
+
+	for i := range channels {
+		items[i] = item(channels[i])
+		i++
+	}
+
+	return items
 }
