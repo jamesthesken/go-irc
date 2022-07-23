@@ -77,6 +77,7 @@ func ParseMessage(msg string, client *Client) Message {
 	m.Time = timeStamp.Format("3:04PM")
 
 	if m.NumReply == RplEndOfNames {
+		client.Channel = fullMsg[3]
 		client.Channels = append(client.Channels, fullMsg[3])
 	}
 

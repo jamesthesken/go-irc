@@ -225,12 +225,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, constants.Keymap.Tab):
 			m.toggleBox()
 		case key.Matches(msg, constants.Keymap.Enter):
-			timeStamp := time.Now()
-			m.messages = append(m.messages, m.senderStyle.Render(timeStamp.Format("3:04PM"+" < You > "))+m.textarea.Value())
-			m.Write(m.textarea.Value())
-			m.textarea.Reset()
-			m.viewport.SetContent(strings.Join(m.messages, "\n"))
-			m.viewport.GotoBottom()
+			if m.textarea.Focused() {
+				timeStamp := time.Now()
+				m.messages = append(m.messages, m.senderStyle.Render(timeStamp.Format("3:04PM"+" < You > "))+m.textarea.Value())
+				m.Write(m.textarea.Value(), false)
+				m.textarea.Reset()
+				m.viewport.SetContent(strings.Join(m.messages, "\n"))
+				m.viewport.GotoBottom()
+			}
 		}
 
 	// We handle errors just like any other message
@@ -274,7 +276,7 @@ func (m Model) Read(conn io.ReadWriter, p *tea.Program) {
 		msgRcv := client.ParseMessage(line, m.client)
 
 		if msgRcv.Ping {
-			m.Write(msgRcv.Content)
+			m.Write(msgRcv.Content, true)
 		}
 
 		// TODO: Move to a dedicated "Handler" module of some sort
@@ -303,12 +305,16 @@ func (m Model) Read(conn io.ReadWriter, p *tea.Program) {
 	}
 }
 
-func (m *Model) Write(msg string) {
+func (m *Model) Write(msg string, ping bool) {
 	writer := bufio.NewWriter(m.conn)
-	// formats the message into one acceptable by IRC
-	formattedMsg := m.client.FormatMessage(msg)
+
+	if !ping {
+		// formats the message into one acceptable by IRC
+		msg = m.client.FormatMessage(msg)
+	}
+
 	// Just makes for easier formatting, as opposed to WriteString()
-	fmt.Fprintf(writer, "%s\r\n", formattedMsg)
+	fmt.Fprintf(writer, "%s\r\n", msg)
 	writer.Flush()
 }
 
