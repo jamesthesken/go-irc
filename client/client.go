@@ -1,8 +1,10 @@
 package client
 
 import (
+	"bufio"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"strconv"
@@ -11,6 +13,7 @@ import (
 )
 
 type Client struct {
+	Conn     io.ReadWriter
 	Host     string
 	FullName string
 	Nick     string
@@ -30,6 +33,8 @@ func (client *Client) Connect(server string) (net.Conn, error) {
 		return nil, err
 	}
 
+	client.Conn = c
+
 	// RFC 1459 - 4.1.2/3 - NICK and USER messages
 	nick := "NICK samej1293871\n"
 	user := "USER samej1293871 * * :samej1293871\n"
@@ -41,6 +46,19 @@ func (client *Client) Connect(server string) (net.Conn, error) {
 	c.Write([]byte(user))
 
 	return c, nil
+}
+
+func (client *Client) Write(conn io.Writer, msg string, ping bool) {
+	writer := bufio.NewWriter(conn)
+
+	if !ping {
+		// formats the message into one acceptable by IRC
+		msg = client.FormatMessage(msg)
+	}
+
+	// Just makes for easier formatting, as opposed to WriteString()
+	fmt.Fprintf(writer, "%s\r\n", msg)
+	writer.Flush()
 }
 
 // ParseMessage returns formatted incoming messages
@@ -57,6 +75,8 @@ func ParseMessage(msg string, client *Client) Message {
 		return Message{Content: pong, Ping: true}
 	}
 
+	// TODO: handle error messages from the server
+
 	content := strings.Join(fullMsg[3:][:], " ")
 
 	// nickname of who we received the message from
@@ -64,6 +84,7 @@ func ParseMessage(msg string, client *Client) Message {
 
 	timeStamp := time.Now()
 	cmd := fullMsg[1]
+	// if there's a numeric reply from the server, save it to NumReply
 	if s, err := strconv.Atoi(cmd); err == nil {
 		m.NumReply = s
 	} else {
@@ -76,27 +97,20 @@ func ParseMessage(msg string, client *Client) Message {
 	m.Content = strings.TrimPrefix(content, ":")
 	m.Time = timeStamp.Format("3:04PM")
 
-	if m.NumReply == RplEndOfNames {
-		client.Channel = fullMsg[3]
-		client.Channels = append(client.Channels, fullMsg[3])
+	if m.Nick == client.Nick {
+		client.Channel = m.Channel
+		client.Channels = append(client.Channels, client.Channel)
 	}
 
 	return m
 }
 
-// UpdateClient
-func (client *Client) UpdateClient(msg Message) {
-	if msg.NumReply < 401 {
-		client.Nick = msg.Nick
-		client.Channel = msg.Channel
-		client.Channels = append(client.Channels, msg.Channel)
-	}
-
-}
-
 // FormatMessage returns formatted outgoing messages.
 func (client *Client) FormatMessage(msg string) string {
 	// Check if the message includes a server command
+
+	// TODO: Handle commands and check if the server responds with an error message, before changing state
+
 	if strings.HasPrefix(msg, "/") {
 		contents := strings.Split(msg, " ")
 		if len(contents) >= 1 {
@@ -116,6 +130,13 @@ func (client *Client) FormatMessage(msg string) string {
 		msg)
 
 	return outMsg
+}
+
+// setNick modifies the clients
+// client sends NICK request
+func (client *Client) setNick(cmd Command) {
+
+	client.Nick = cmd.Params[0]
 }
 
 func removeChannel(s []string, r string) []string {

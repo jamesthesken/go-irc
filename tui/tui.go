@@ -228,7 +228,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.textarea.Focused() {
 				timeStamp := time.Now()
 				m.messages = append(m.messages, m.senderStyle.Render(timeStamp.Format("3:04PM"+" < You > "))+m.textarea.Value())
-				m.Write(m.textarea.Value(), false)
+				m.client.Write(m.conn, m.textarea.Value(), false)
 				m.textarea.Reset()
 				m.viewport.SetContent(strings.Join(m.messages, "\n"))
 				m.viewport.GotoBottom()
@@ -276,7 +276,7 @@ func (m Model) Read(conn io.ReadWriter, p *tea.Program) {
 		msgRcv := client.ParseMessage(line, m.client)
 
 		if msgRcv.Ping {
-			m.Write(msgRcv.Content, true)
+			m.client.Write(conn, msgRcv.Content, true)
 		}
 
 		// TODO: Move to a dedicated "Handler" module of some sort
@@ -303,19 +303,6 @@ func (m Model) Read(conn io.ReadWriter, p *tea.Program) {
 	if s.Err() != nil {
 		log.Fatalf("Error occured: %s", s.Err())
 	}
-}
-
-func (m *Model) Write(msg string, ping bool) {
-	writer := bufio.NewWriter(m.conn)
-
-	if !ping {
-		// formats the message into one acceptable by IRC
-		msg = m.client.FormatMessage(msg)
-	}
-
-	// Just makes for easier formatting, as opposed to WriteString()
-	fmt.Fprintf(writer, "%s\r\n", msg)
-	writer.Flush()
 }
 
 func (m *Model) setContent(text string) {
