@@ -6,8 +6,6 @@ package client
 	based on which messages are received.
 */
 
-// idea - move ErrReply struct to Message
-
 type Message struct {
 	Content      string
 	Nick         string
@@ -16,15 +14,4 @@ type Message struct {
 	Notification string
 	NumReply     int
 	Ping         bool
-}
-
-type Command struct {
-	Cmd    string
-	Params []string
-}
-
-var cmd = map[string]string{
-	"/nick": "set nickname",
-	"/join": "join channel",
-	"/part": "leave a channel",
 }
