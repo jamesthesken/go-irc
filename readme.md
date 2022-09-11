@@ -17,7 +17,6 @@ In order of priority:
 * Toggle view between active channels
 * User configuration page
 * Support auto-completion for commands
-* More soon ...
 
 ### How to Run:
 
