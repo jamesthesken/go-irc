@@ -7,13 +7,10 @@ TODO:
 */
 
 import (
-	"flag"
 	"fmt"
 	"gopherchatv2/client"
 	"io"
 	"log"
-	"os"
-	"sync"
 	"time"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -21,43 +18,37 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/spf13/viper"
 
 	irc "github.com/fluffle/goirc/client"
 )
 
-var wg sync.WaitGroup
-
-var host *string = flag.String("host", "irc.libera.chat", "IRC server")
-var channel *string = flag.String("channel", "#test", "IRC channel")
-
 func StartTea() {
 
-	// start logging
-	f, err := os.OpenFile("testlogfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
+	// load configs
+	viper.SetConfigName("config")
+	viper.AddConfigPath("./config")
+	err := viper.ReadInConfig() // Find and read the config file
+	if err != nil {             // Handle errors reading the config file
+		panic(fmt.Errorf("fatal error config file: %w", err))
 	}
-	defer f.Close()
 
-	log.SetOutput(f)
+	var host = viper.GetString("host")
+	var channel = viper.GetString("default_channel")
+	var nick = viper.GetString("nick")
 
 	m := initialModel()
-
-	wg.Add(1)
 
 	p := *tea.NewProgram(m,
 		tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
 		tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
 	)
 
-	// Connect to IRC
-	flag.Parse()
-
 	// create new IRC connection
-	c := irc.SimpleClient("GoTest1234124123", "gotest")
+	c := irc.SimpleClient(nick, "gotest")
 	c.EnableStateTracking()
 	c.HandleFunc("connected",
-		func(conn *irc.Conn, line *irc.Line) { conn.Join(*channel) })
+		func(conn *irc.Conn, line *irc.Line) { conn.Join(channel) })
 
 	// Set up a handler to notify of disconnect events.
 	quit := make(chan bool)
@@ -79,7 +70,7 @@ func StartTea() {
 	m.ircClient = c
 
 	// connect to server
-	if err := c.ConnectTo(*host); err != nil {
+	if err := c.ConnectTo(host); err != nil {
 		fmt.Printf("Connection error: %s\n", err)
 		return
 	}
@@ -108,7 +99,6 @@ type Model struct {
 	list        list.Model
 	senderStyle lipgloss.Style
 	notifStyle  lipgloss.Style
-	conn        io.Writer
 	channel     string
 	channels    []string
 	messages    []string
