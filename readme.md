@@ -22,6 +22,10 @@ In order of priority:
 
 This software is tested on `go1.18.1`
 
+First, edit the config file located in the `config` directory. Replace the values for nick, host, and channel with your own. Upon startup you join the `default_channel`, currently set to #test.
+
+Then:
+
 ```
 git clone https://github.com/jamesthesken/go-irc.git
 cd go-irc
